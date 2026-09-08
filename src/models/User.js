@@ -383,8 +383,8 @@ class User {
         email_validated = false
       } = userData;
 
-      // Generar password temporal sin hashear
       const tempPassword = 'tmp-' + crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
 
       const query = `
         INSERT INTO users (
@@ -393,7 +393,7 @@ class User {
         RETURNING *
       `;
 
-      const values = [cups, email, name, tempPassword, role, google_id, dni, clau_datadis, email_validated, true];
+      const values = [cups, email, name, passwordHash, role, google_id, dni, clau_datadis, email_validated, true];
       const result = await database.query(query, values);
 
       logger.info('Usuario creado con password temporal', { userId: result.rows[0].id, email });

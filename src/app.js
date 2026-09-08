@@ -128,7 +128,7 @@ class ExpressApp {
     this.app.use((req, res, next) => {
       logger.info('HTTP Request', {
         method: req.method,
-        url: req.url,
+        path: req.path,
         ip: req.ip,
         userAgent: req.get('User-Agent')
       });
@@ -406,7 +406,7 @@ class ExpressApp {
       if (req.originalUrl.startsWith('/api/')) {
         return res.status(404).json({
           error: 'Endpoint no encontrado',
-          path: req.originalUrl,
+          path: req.path,
           timestamp: new Date().toISOString()
         });
       }
@@ -417,7 +417,7 @@ class ExpressApp {
         layout: 'main',
         showNavbar: false,
         showFooter: true,
-        path: req.originalUrl
+        path: req.path
       });
     });
   }
@@ -428,7 +428,7 @@ class ExpressApp {
       logger.error('Error no manejado en Express:', {
         error: error.message,
         stack: error.stack,
-        url: req.url,
+        path: req.path,
         method: req.method,
         ip: req.ip
       });

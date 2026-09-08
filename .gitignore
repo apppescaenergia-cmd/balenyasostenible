@@ -59,8 +59,17 @@ xat_OpenCode.txt
 xuleta.txt
 
 .env
-.env.local
+.env.*
+!.env.example
 
 # logs i backups de runtime
 logs/
 backups/
+
+# Secrets i claus privades
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+service-account*.json

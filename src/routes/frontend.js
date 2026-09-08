@@ -4,6 +4,7 @@ const User = require('../models/User');
 const database = require('../utils/database');
 const configLoader = require('../utils/configLoader');
 const logger = require('../utils/logger');
+const { getJwtSecret } = require('../config/security');
 
 const router = express.Router();
 
@@ -101,7 +102,7 @@ const checkAuthFromCookie = async (req, res, next) => {
         }
 
         // Verificar token
-        const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
+        const jwtSecret = getJwtSecret();
         const decoded = jwt.verify(token, jwtSecret, {
             issuer: 'pescaenergia',
             audience: 'pescaenergia-users'
@@ -498,7 +499,7 @@ router.get('/set-initial-password', checkAuthFromCookie, requireAuth, (req, res)
 
     // Generar token para la API
     const jwt = require('jsonwebtoken');
-    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
+    const jwtSecret = getJwtSecret();
     const token = jwt.sign(
         {
             userId: req.user.userId,
