@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const database = require('../utils/database');
+const configLoader = require('../utils/configLoader');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -113,12 +114,34 @@ const checkAuthFromCookie = async (req, res, next) => {
             return next();
         }
 
+        const userData = user.toJSON();
+
+        // Participació / coeficient de repartiment del soci
+        try {
+            const participationResult = await database.query(
+                'SELECT generator_code, participation_percentage FROM user_participation WHERE user_id = $1 LIMIT 1',
+                [user.id]
+            );
+            userData.participation = participationResult.rows[0] || null;
+        } catch (err) {
+            logger.warn('Error llegint la participació de l\'usuari', { userId: user.id, error: err.message });
+            userData.participation = null;
+        }
+
+        // Plantes (generadors) actius disponibles
+        try {
+            userData.generators = configLoader.getActiveGenerators();
+        } catch (err) {
+            logger.warn('Error carregant els generadors actius', { error: err.message });
+            userData.generators = [];
+        }
+
         req.user = {
             userId: user.id,
             email: user.email,
             role: user.role,
             emailValidated: user.email_validated,
-            userData: user.toJSON()
+            userData
         };
 
         next();

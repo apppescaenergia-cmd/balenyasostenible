@@ -407,7 +407,7 @@ class User {
   // Actualizar perfil
   async updateProfile(updates) {
     try {
-      const allowedFields = ['name', 'cups'];
+      const allowedFields = ['name', 'cups', 'clau_datadis', 'dni'];
       const fields = [];
       const values = [];
       let paramCount = 1;

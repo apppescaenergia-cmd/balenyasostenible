@@ -1,0 +1,124 @@
+RESUM D'AUTOMATITZACIÓ - PLATAFORMA PESCAENERGIA
+=====================================================================
+
+1. QUÈ S'ENTÉN PER AUTOMATITZACIÓ EN AQUEST PROJECTE
+---------------------------------------------------------------------
+Automatitzar vol dir que la plataforma decideix sola, en temps real,
+quan encendre i apagar els dispositius elèctrics de la comunitat
+(no cal que cap persona ho faci manualment). La decisió es pren a
+partir de dades reals que arriben cada segon:
+
+  * Potència generada pels panells solars (generació)
+  * Consum elèctric de cada dispositiu i de cada llar (consum)
+  * Excedent de producció = generació - consum
+  * Horari del dia i franja horària
+  * Temperatura (en les versions més avançades)
+  * Preu horari de l'electricitat (en les versions més avançades)
+
+Quan hi ha excedent solar, la plataforma activa els dispositius per
+aprofitarlo i no malgastar energia. Quan no n'hi ha, els apaga.
+
+Motors d'automatització:
+  * AutomationManager: avalua cada segon les automatitzacions per
+    horari i per potència i controla els endolls intel·ligents.
+  * PoolAutomationService: automatitza la depuradora de la piscina
+    (horari, automàtic per excedent amb histeresi i màxim d'hores).
+
+2. AUTOMATITZACIONS QUE JA FUNCIONEN
+---------------------------------------------------------------------
+  1) Depuradora de la piscina:
+     - Mode horari: encesa en franges fixes del dia.
+     - Mode automàtic: s'encén quan hi ha excedent solar i s'apaga
+       quan aquest baixa, amb histeresi per evitar encendre/apagar
+       constantment, i amb un màxim d'hores diàries.
+     - Inclou bomba depuradora, bomba de neteja i clorador salí.
+  2) Endolls intel·ligents (Shelly) amb automatització:
+     - Per horari (franges horàries configurades).
+     - Per potència (encén/apaga segons l'excedent de producció).
+     - Control manual des de l'àrea d'usuari.
+
+3. QUÈ PODRIEM AUTOMATITZAR ARA MATEIX (el més important)
+---------------------------------------------------------------------
+  1) CARREGADOR PER A BICICLETES I VEHICLES ELÈCTRICS (EV)
+     Endoll elèctric dedicat (tipus EV_CHARGER) amb automàtica per
+     excedent: el vehicle es carrega només quan hi ha sol de sobres i
+     s'atura automàticament quan l'excedent s'esgota. Amb prioritat
+     baixa: primer s'apaga que altres dispositius més prioritaris.
+
+  2) CÀRREGA INTEL·LIGENT AMB PRIORITATS (load management)
+     Quan l'excedent no arriba per a tots els dispositius, la
+     plataforma n'activa/desactiva per ordre de prioritat:
+       - Prioritat alta: consums bàsics (bomba depuradora, ACS).
+       - Prioritat mitjana: electrodomèstics, llavadora,
+         rentavaixelles.
+       - Prioritat baixa: càrrega EV, acumuladors, calefacció.
+     Es pot introduir amb un simple camp "prioritat" a cada
+     configuració d'automatització.
+
+  3) ACS I AEROTÈRMIA (aigua calenta sanitària i bombes de calor)
+     Encendre l'escalfador o l'aerotèrmia només quan hi ha excedent
+     solar i la temperatura de l'aigua ho requereix. Requereix sondes
+     de temperatura als dipòsits (es poden afegir als dispositius
+     Shelly existents).
+
+  4) ELECTRODOMÈSTICS (llavadora, rentavaixelles, assecadora)
+     Programació per excedent: la persona indica la franja horària i
+     la plataforma l'activa quan hi ha sol. Homes i càrregues
+     es reprogramen sols per aprofitar l'excedent.
+
+  5) AUTOMATITZACIÓ PER PREU HORARI (PVPC)
+     Integració amb el preu horari de l'electricitat (API de Red
+     Eléctrica): els dispositius s'encenen quan el preu és baix.
+
+4. PASSARELES I INTEGRACIÓ AMB ALTRES SISTEMES DE DOMÒTICA
+---------------------------------------------------------------------
+La plataforma pot compartir les seves dades (consums, excedent,
+estats dels dispositius) i rebre comandes amb sistemes de domòtica
+mitjançant passareles (conectors). L'arquitectura proposada és un
+servei de passarela que es connecta als sistemes sense modificar el
+nucli de la plataforma:
+
+  * HOME ASSISTANT - la més fàcil: parla MQTT de forma nativa.
+    La plataforma publica les dades en topics MQTT propis que
+    Home Assistant llegeix directament i des d'on es poden enviar
+    comandes d'encendre/apagar. Compatible amb MQTT Discovery.
+
+  * LOXONE - integració MQTT directa amb el Miniserver (des de la
+    versió 14.x) o mitjançant el servei REST/JSON de Loxone. Les
+    dades de consum i excedent es publiquen com a variables del
+    sistema Loxone.
+
+  * KNX - KNX no parla MQTT directament: cal un gateway KNX/IP amb
+    un pont MQTT. Des del servidor es pot escriure al bus KNX
+    mitjançant el protocol KNX/IP si es disposa d'un gateway IP.
+
+  * BTICINO MYHOME - sistema SCS amb Web Server obert: integració
+    via interfície HTTP/REST directa.
+
+Tots els sistemes compartiran les mateixes dades:
+  - Generació fotovoltaica (W)
+  - Consum total (W)
+  - Excedent (W)
+  - Estat de cada dispositiu (ON/OFF + potència)
+  - Comandes d'encès/apagat des dels sistemes externs
+
+5. ARMARI ELÈCTRIC, SENSORS I MATERIALS
+---------------------------------------------------------------------
+Per ampliar l'automatització cal material estàndard i de baix cost:
+  * Endolls intel·ligents Shelly Plug/Plus Plug S (control de
+    dispositius individuals).
+  * Rele-moduls Shelly / mòduls de relé per a dispositius fixes
+    (bomba, ACS, llavadora).
+  * Sondes de temperatura per a dipòsits d'ACS i piscina.
+  * Gateway MQTT/KNX o MQTT/Loxone per a la domòtica existent.
+
+6. VALOR AFEGIT PER A LA SUBVENCIÓ
+---------------------------------------------------------------------
+  * Estalvi econòmic real: consum solar propi en lloc de comprar
+    energia, prioritzant quan més energia generem.
+  * Màxim aprofitament de l'autoconsum compartit de la comunitat.
+  * Sostenibilitat: menys dependència de la xarxa i de combustibles.
+  * Innovació: integració amb domòtica, vehicle elèctric i
+    monitoratge en temps real.
+  * Escalabilitat: la plataforma permet afegir dispositius i
+    automatitzacions sense canviar l'arquitectura.

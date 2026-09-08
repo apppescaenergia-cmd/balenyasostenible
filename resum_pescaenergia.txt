@@ -1,0 +1,47 @@
+RESUM DE LA PLATAFORMA PESCAENERGIA
+========================================
+
+PescaEnergia és una plataforma web de gestió energètica per a una comunitat
+energètica local. Recull, emmagatzema i visualitza en temps real el consum
+d'electricitat dels punts de subministrament (CUPS) i dels dispositius
+connectats de cada participant.
+
+FUNCIONALITATS PRINCIPALS
+----------------------------------------
+
+1. AUTENTICACIÓ I GESTIÓ D'USUARIS
+   Registre i accés amb correu electrònic o compte de Google, verificació de
+   correu, recuperació de contrasenya i panell d'usuari personal.
+
+2. MONITORATGE EN TEMPS REAL
+   Recepció de dades dels comptadors intel·ligents i dispositius (Shelly) via
+   MQTT, amb visualització del consum en directe i històric.
+
+3. DASHBOARD I ESTADÍSTIQUES
+   Gràfics de consum per dia típic, evolució temporal, i exportació
+   d'informes en Excel i PDF.
+
+4. CÀLCUL DEL BALANÇ ENERGÈTIC
+   Registre automàtic de consums cada quart d'hora i càlcul del balanç entre
+   generació (autoconsum) i consum de la comunitat.
+
+5. AUTOMATITZACIÓ DE DISPOSITIUS
+   Gestió i automatització d'endolls i de la bomba de la piscina (encès i
+   apagat per franges horàries i per potència).
+
+6. INTEGRACIÓ AMB DATADIS
+   Consulta automàtica del consum oficial facilitat per la distribuïdora
+   elèctrica.
+
+7. PARTICIPACIÓ A LA COMUNITAT
+   Registre dels usuaris i els seus codis de subministrament per organitzar
+   l'energia compartida.
+
+8. ADMINISTRACIÓ
+   Panell d'administració amb alta d'usuaris, assignació de CUPS i gestió del
+   sistema.
+
+BENEFICIS
+----------------------------------------
+Estalvi energètic, transparència del consum, optimització de l'ús de l'energia
+generada i foment de l'autoconsum compartit.

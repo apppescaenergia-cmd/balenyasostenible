@@ -175,6 +175,60 @@ class UserParticipationService {
   }
 
   /**
+   * Actualitzar la pròpia participació (autoservei del soci).
+   * El soci pot canviar la planta associada i/o el seu percentatge sense
+   * dependre de l'administrador. Si ja pertany a la mateixa planta, només
+   * s'actualitza el percentatge; si canvia de planta, es substitueix.
+   */
+  async updateMyParticipation(userId, { generatorCode, participationPercentage }) {
+    try {
+      const generator = this.validateGenerator(generatorCode);
+      const validPercentage = this.validatePercentage(participationPercentage);
+
+      const existingRows = await this.userParticipation.findByUserId(userId);
+      const sameGeneratorRow = existingRows.find((r) => r.generator_code === generatorCode);
+
+      if (sameGeneratorRow) {
+        const updated = await this.userParticipation.updateOwn(sameGeneratorRow.id, {
+          generatorCode,
+          participationPercentage: validPercentage
+        });
+
+        logger.info('Participació pròpia actualitzada', { userId, generatorCode, percentage: validPercentage });
+
+        return {
+          ...updated,
+          generator_name: generator.name,
+          generator_active: generator.active
+        };
+      }
+
+      // Canvi de planta: eliminar les participacions anteriors i crear la nova
+      for (const row of existingRows) {
+        await this.userParticipation.delete(row.id);
+      }
+
+      const created = await this.userParticipation.create({
+        userId,
+        generatorCode,
+        participationPercentage: validPercentage,
+        assignedBy: null
+      });
+
+      logger.info('Participació pròpia creada/assignada', { userId, generatorCode, percentage: validPercentage });
+
+      return {
+        ...created,
+        generator_name: generator.name,
+        generator_active: generator.active
+      };
+    } catch (error) {
+      logger.error('Error actualitzant la participació pròpia:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtener participaciones de un usuario con información de generadores
    */
   async getUserParticipations(userId) {

@@ -48,6 +48,9 @@ class ExpressApp {
       layoutsDir: path.join(__dirname, 'templates/layouts'),
       partialsDir: path.join(__dirname, 'templates/partials'),
       helpers: {
+        eq: function (a, b, options) {
+          return a === b ? options.fn(this) : options.inverse(this);
+        },
         formatDate: (date) => {
           if (!date) return '';
           return new Date(date).toLocaleDateString('ca-ES', {

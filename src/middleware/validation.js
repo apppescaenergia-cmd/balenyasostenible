@@ -203,6 +203,23 @@ const validateUpdateProfile = [
     .matches(/^ES[A-Z0-9]{20}$/)
     .withMessage('El CUPS ha de tenir el format vàlid espanyol (ES + 20 caràcters alfanumèrics)'),
 
+  body('clau_datadis')
+    .optional({ values: 'falsy' })
+    .isLength({ max: 100 })
+    .withMessage('La clau de Datadis no pot superar els 100 caràcters'),
+
+  body('dni')
+    .optional({ values: 'falsy' })
+    .trim()
+    .custom((value) => {
+      if (value === '') return true;
+      const dniRegex = /^[0-9XYZ][0-9]{7}[A-Za-z]$/;
+      if (!dniRegex.test(value.toUpperCase())) {
+        throw new Error('DNI/NIE invàlid');
+      }
+      return true;
+    }),
+
   handleValidationErrors
 ];
 

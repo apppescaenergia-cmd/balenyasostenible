@@ -4,6 +4,9 @@ const User = require('../models/User');
 const database = require('../utils/database');
 const emailService = require('./emailService');
 const googleAuthService = require('./googleAuthService');
+const userParticipationService = require('./userParticipationService');
+const cryptoService = require('./cryptoService');
+const configLoader = require('../utils/configLoader');
 const logger = require('../utils/logger');
 
 class AuthService {
@@ -402,7 +405,14 @@ class AuthService {
         throw new Error('Usuari no trobat');
       }
 
-      return user.toJSON();
+      const participations = await userParticipationService.getUserParticipations(userId);
+      const generators = configLoader.getActiveGenerators();
+
+      return {
+        ...user.toJSON(),
+        participations,
+        generators
+      };
     } catch (error) {
       logger.error('Error obteniendo perfil:', error);
       throw error;
@@ -417,13 +427,36 @@ class AuthService {
         throw new Error('Usuari no trobat');
       }
 
-      await user.updateProfile(updates);
+      const { clau_datadis, generatorCode, participationPercentage, dni, ...userUpdates } = updates;
+
+      // DNI/NIE del soci (s'utilitza per a l'accés a Datadis)
+      if (dni !== undefined) {
+        userUpdates.dni = dni ? dni.trim().toUpperCase() : null;
+      }
+
+      // Clau d'accés a Datadis: s'encripta abans de desar.
+      // Si ve buida es manté el valor actual.
+      if (clau_datadis !== undefined) {
+        userUpdates.clau_datadis = clau_datadis !== '' ? cryptoService.encrypt(clau_datadis) : user.clau_datadis;
+      }
+
+      if (Object.keys(userUpdates).length > 0) {
+        await user.updateProfile(userUpdates);
+      }
+
+      // Participació / coeficient de repartiment (autoservei del soci)
+      if (generatorCode !== undefined && participationPercentage !== undefined) {
+        await userParticipationService.updateMyParticipation(userId, {
+          generatorCode,
+          participationPercentage
+        });
+      }
 
       logger.info('Perfil actualizado', { 
         userId: user.id 
       });
 
-      return user.toJSON();
+      return this.getProfile(userId);
     } catch (error) {
       logger.error('Error actualizando perfil:', error);
       throw error;
