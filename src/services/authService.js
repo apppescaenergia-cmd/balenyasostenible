@@ -1,13 +1,18 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
+const database = require('../utils/database');
 const emailService = require('./emailService');
 const googleAuthService = require('./googleAuthService');
+const userParticipationService = require('./userParticipationService');
+const cryptoService = require('./cryptoService');
+const configLoader = require('../utils/configLoader');
 const logger = require('../utils/logger');
+const { getJwtSecret } = require('../config/security');
 
 class AuthService {
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
+    this.jwtSecret = getJwtSecret();
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
     this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
   }
@@ -88,7 +93,7 @@ class AuthService {
 
       return {
         user: user.toJSON(),
-        message: 'Usuario registrado. Por favor verifica tu email para completar el registro.'
+        message: 'Usuari registrat. Si us plau, verifica el teu email per completar el registre.'
       };
     } catch (error) {
       logger.error('Error en registro de usuario:', error);
@@ -113,21 +118,21 @@ class AuthService {
 
       // Verificar que el email esté validado
       if (!user.email_validated) {
-        const error = new Error('Email verification required');
+        const error = new Error('Email no verificat');
         error.code = 'EMAIL_NOT_VERIFIED';
         throw error;
       }
 
       // Verificar si tiene password temporal
       if (user.is_temp_password) {
-        const error = new Error('Password inicial requerida');
+        const error = new Error('Contrasenya inicial obligatòria');
         error.code = 'PASSWORD_NOT_SET';
         throw error;
       }
 
       // Verificar si tiene CUPS asignado (solo para usuarios normales, no admins)
       if (user.role !== 'admin' && !user.cups) {
-        const error = new Error('CUPS no asignado');
+        const error = new Error('CUPS sense assignar');
         error.code = 'CUPS_NOT_ASSIGNED';
         throw error;
       }
@@ -401,7 +406,14 @@ class AuthService {
         throw new Error('Usuari no trobat');
       }
 
-      return user.toJSON();
+      const participations = await userParticipationService.getUserParticipations(userId);
+      const generators = configLoader.getActiveGenerators();
+
+      return {
+        ...user.toJSON(),
+        participations,
+        generators
+      };
     } catch (error) {
       logger.error('Error obteniendo perfil:', error);
       throw error;
@@ -416,13 +428,36 @@ class AuthService {
         throw new Error('Usuari no trobat');
       }
 
-      await user.updateProfile(updates);
+      const { clau_datadis, generatorCode, participationPercentage, dni, ...userUpdates } = updates;
+
+      // DNI/NIE del soci (s'utilitza per a l'accés a Datadis)
+      if (dni !== undefined) {
+        userUpdates.dni = dni ? dni.trim().toUpperCase() : null;
+      }
+
+      // Clau d'accés a Datadis: s'encripta abans de desar.
+      // Si ve buida es manté el valor actual.
+      if (clau_datadis !== undefined) {
+        userUpdates.clau_datadis = clau_datadis !== '' ? cryptoService.encrypt(clau_datadis) : user.clau_datadis;
+      }
+
+      if (Object.keys(userUpdates).length > 0) {
+        await user.updateProfile(userUpdates);
+      }
+
+      // Participació / coeficient de repartiment (autoservei del soci)
+      if (generatorCode !== undefined && participationPercentage !== undefined) {
+        await userParticipationService.updateMyParticipation(userId, {
+          generatorCode,
+          participationPercentage
+        });
+      }
 
       logger.info('Perfil actualizado', { 
         userId: user.id 
       });
 
-      return user.toJSON();
+      return this.getProfile(userId);
     } catch (error) {
       logger.error('Error actualizando perfil:', error);
       throw error;
@@ -497,6 +532,61 @@ class AuthService {
       };
     } catch (error) {
       logger.error('Error estableciendo password inicial:', error);
+      throw error;
+    }
+  }
+
+  // Cambiar credenciales (email y/o password) verificando las actuales.
+  // Pensado para el panel de administración (solo usuarios admin).
+  async changeCredentials(currentEmail, currentPassword, newEmail, newPassword) {
+    try {
+      const user = await User.findByEmail(currentEmail);
+      if (!user) {
+        throw new Error('Credencials invàlides');
+      }
+
+      const isValidPassword = await user.verifyPassword(currentPassword);
+      if (!isValidPassword) {
+        throw new Error('Credencials invàlides');
+      }
+
+      if (user.role !== 'admin') {
+        const error = new Error('No autoritzat: només administradors');
+        error.code = 'UNAUTHORIZED';
+        throw error;
+      }
+
+      if (newEmail) {
+        const normalizedNewEmail = newEmail.toLowerCase();
+        if (normalizedNewEmail !== user.email.toLowerCase()) {
+          const duplicate = await database.query(
+            'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id <> $2',
+            [normalizedNewEmail, user.id]
+          );
+          if (duplicate.rows.length > 0) {
+            const error = new Error('Aquest email ja està en ús');
+            error.code = 'EMAIL_IN_USE';
+            throw error;
+          }
+          await user.updateEmail(normalizedNewEmail);
+        }
+      }
+
+      if (newPassword) {
+        await user.updatePassword(newPassword);
+      }
+
+      logger.info('Credencials actualitzades', {
+        userId: user.id,
+        email: user.email,
+        passwordChanged: !!newPassword
+      });
+
+      return {
+        message: 'Credencials actualitzades correctament'
+      };
+    } catch (error) {
+      logger.error('Error canviant credencials:', error);
       throw error;
     }
   }

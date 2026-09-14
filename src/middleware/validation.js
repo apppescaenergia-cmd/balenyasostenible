@@ -8,12 +8,11 @@ const handleValidationErrors = (req, res, next) => {
   if (!errors.isEmpty()) {
     const formattedErrors = errors.array().map(error => ({
       field: error.path || error.param,
-      message: error.msg,
-      value: error.value
+      message: error.msg
     }));
 
     logger.warn('Errores de validación', {
-      url: req.url,
+      path: req.path,
       method: req.method,
       errors: formattedErrors,
       ip: req.ip
@@ -154,6 +153,39 @@ const validateChangePassword = [
   handleValidationErrors
 ];
 
+// Validaciones para cambio de credenciales (email y/o password) desde el login
+const validateChangeCredentials = [
+  body('currentEmail')
+    .isEmail()
+    .withMessage('Email actual invàlid')
+    .normalizeEmail({
+      gmail_remove_dots: false,
+      gmail_remove_subaddress: false
+    }),
+
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('La contrasenya actual és obligatòria'),
+
+  body('newEmail')
+    .optional({ checkFalsy: true })
+    .isEmail()
+    .withMessage('El nou email ha de ser vàlid')
+    .normalizeEmail({
+      gmail_remove_dots: false,
+      gmail_remove_subaddress: false
+    }),
+
+  body('newPassword')
+    .optional({ checkFalsy: true })
+    .isLength({ min: 8 })
+    .withMessage('La nova contrasenya ha de tenir almenys 8 caràcters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('La nova contrasenya ha de contenir almenys una minúscula, una majúscula i un número'),
+
+  handleValidationErrors
+];
+
 // Validaciones para actualización de perfil
 const validateUpdateProfile = [
   body('name')
@@ -167,8 +199,78 @@ const validateUpdateProfile = [
   body('cups')
     .optional()
     .trim()
-    .matches(/^ES\d{18}[A-Z]{2}\d{2}[A-Z]$/)
-    .withMessage('El CUPS ha de tenir el format vàlid espanyol (ES + 18 dígits + 2 lletres + 2 dígits + 1 lletra)'),
+    .matches(/^ES[A-Z0-9]{20}$/)
+    .withMessage('El CUPS ha de tenir el format vàlid espanyol (ES + 20 caràcters alfanumèrics)'),
+
+  body('clau_datadis')
+    .optional({ values: 'falsy' })
+    .isLength({ max: 100 })
+    .withMessage('La clau de Datadis no pot superar els 100 caràcters'),
+
+  body('dni')
+    .optional({ values: 'falsy' })
+    .trim()
+    .custom((value) => {
+      if (value === '') return true;
+      const dniRegex = /^[0-9XYZ][0-9]{7}[A-Za-z]$/;
+      if (!dniRegex.test(value.toUpperCase())) {
+        throw new Error('DNI/NIE invàlid');
+      }
+      return true;
+    }),
+
+  handleValidationErrors
+];
+
+// Validaciones para actualizar un usuario desde admin
+const validateUpdateUser = [
+  body('email')
+    .optional()
+    .isEmail()
+    .withMessage('Ha de ser un email vàlid')
+    .normalizeEmail({
+      gmail_remove_dots: false,
+      gmail_remove_subaddress: false
+    })
+    .isLength({ max: 255 })
+    .withMessage('L\'email no pot excedir 255 caràcters'),
+
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('El nom ha de tenir entre 2 i 100 caràcters')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/)
+    .withMessage('El nom només pot contenir lletres i espais'),
+
+  body('cups')
+    .optional({ values: 'falsy' })
+    .trim()
+    .custom((value) => {
+      if (value === '') return true;
+      const cupsRegex = /^ES[A-Z0-9]{20}$/;
+      if (!cupsRegex.test(value)) {
+        throw new Error('CUPS invàlid');
+      }
+      return true;
+    }),
+
+  body('dni')
+    .optional({ values: 'falsy' })
+    .trim()
+    .custom((value) => {
+      if (value === '') return true;
+      const dniRegex = /^[0-9XYZ][0-9]{7}[A-Za-z]$/;
+      if (!dniRegex.test(value.toUpperCase())) {
+        throw new Error('DNI/NIE invàlid');
+      }
+      return true;
+    }),
+
+  body('clau_datadis')
+    .optional({ values: 'falsy' })
+    .isLength({ max: 100 })
+    .withMessage('La clau de Datadis no pot superar els 100 caràcters'),
 
   handleValidationErrors
 ];
@@ -208,7 +310,7 @@ const validatePagination = [
 
 // Validación personalizada para CUPS
 const validateCUPS = (value) => {
-  const cupsRegex = /^ES\d{18}[A-Z]{2}\d{2}[A-Z]$/;
+  const cupsRegex = /^ES[A-Z0-9]{20}$/;
   if (!cupsRegex.test(value)) {
     throw new Error('CUPS invàlid');
   }
@@ -303,7 +405,9 @@ module.exports = {
   validateForgotPassword,
   validateResetPassword,
   validateChangePassword,
+  validateChangeCredentials,
   validateUpdateProfile,
+  validateUpdateUser,
   validateRefreshToken,
   validateUserId,
   validatePagination,

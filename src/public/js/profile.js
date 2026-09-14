@@ -62,7 +62,7 @@ class ProfileManager {
     /**
      * Muestra el modal de perfil
      */
-    showProfile() {
+    async showProfile() {
         if (!this.isInitialized) {
             this.initialize();
         }
@@ -70,12 +70,55 @@ class ProfileManager {
         if (this.modal) {
             this.modal.classList.remove('modal-hidden');
             this.hideMessage();
-            
+
+            // Cargar datos actualizados de participación desde la API
+            this.loadProfileData().catch(() => {});
+
             // Focus en el campo de nombre
             const nameInput = document.getElementById('profileName');
             if (nameInput) {
                 setTimeout(() => nameInput.focus(), 100);
             }
+        }
+    }
+
+    /**
+     * Carga los datos del perfil desde la API y actualiza els camps dinàmics
+     */
+    async loadProfileData() {
+        try {
+            const { data } = await window.apiClient.get('/api/auth/profile');
+
+            // Actualitzar la llista de plantes
+            const generatorSelect = document.getElementById('profileGenerator');
+            if (generatorSelect && data.generators) {
+                const currentCode = generatorSelect.value;
+                generatorSelect.innerHTML = '<option value="">-- Selecciona una planta --</option>';
+                data.generators.forEach((gen) => {
+                    const option = document.createElement('option');
+                    option.value = gen.id;
+                    option.textContent = gen.name;
+                    generatorSelect.appendChild(option);
+                });
+                if (currentCode) generatorSelect.value = currentCode;
+            }
+
+            // Actualitzar planta i coeficient seleccionats
+            const participation = data.participations && data.participations.length > 0
+                ? data.participations[0]
+                : null;
+
+            if (participation) {
+                if (generatorSelect && participation.generator_code) {
+                    generatorSelect.value = participation.generator_code;
+                }
+                const participationInput = document.getElementById('profileParticipation');
+                if (participationInput) {
+                    participationInput.value = participation.participation_percentage;
+                }
+            }
+        } catch (error) {
+            console.warn('Error carregant les dades del perfil:', error);
         }
     }
 
@@ -105,10 +148,45 @@ class ProfileManager {
         this.showLoading();
 
         try {
-            const { data } = await window.apiClient.put('/api/auth/profile', { name });
+            const payload = { name };
+
+            // DNI/NIE
+            const dniInput = document.getElementById('profileDni');
+            if (dniInput && dniInput.value.trim() !== '') {
+                payload.dni = dniInput.value.trim().toUpperCase();
+            }
+
+            // Clau de Datadis: només s'envia si el camp està actiu i s'ha escrit alguna cosa
+            const datadisKeyInput = document.getElementById('profileDatadisKey');
+            if (datadisKeyInput && !datadisKeyInput.disabled && datadisKeyInput.value.trim() !== '') {
+                payload.clau_datadis = datadisKeyInput.value.trim();
+            }
+
+            const { data } = await window.apiClient.put('/api/auth/profile', payload);
             
             // Actualizar la UI con el nuevo nombre
             this.updateUIWithNewName(data.name);
+            const nameField = document.getElementById('profileName');
+            if (nameField) nameField.value = data.name;
+
+            // Actualitzar participació / coeficient de repartiment
+            const generatorSelect = document.getElementById('profileGenerator');
+            const participationInput = document.getElementById('profileParticipation');
+            const generatorCode = generatorSelect ? generatorSelect.value : '';
+            const participationPct = participationInput ? participationInput.value : '';
+
+            if (generatorCode && participationPct !== '') {
+                const pct = parseFloat(participationPct);
+                if (isNaN(pct) || pct < 0 || pct > 100) {
+                    this.showMessage('El coeficient de repartiment ha d\'estar entre 0 i 100', 'error');
+                    return;
+                }
+
+                await window.apiClient.put('/api/user-participation/my', {
+                    generatorCode,
+                    participationPercentage: pct
+                });
+            }
             
             // Mostrar mensaje de éxito
             this.showMessage('Perfil actualitzat correctament', 'success');

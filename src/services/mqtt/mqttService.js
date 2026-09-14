@@ -11,18 +11,19 @@ class MqttService {
 
     this.client = null;
     this.isConnected = false;
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
-    this.reconnectInterval = 1000; // 1 segundo inicial
     this.messageHandlers = [];
 
-    // Topics estáticos que siempre se suscriben
-    this.staticTopics = [
-      '#'
-      // 'shellies/#',           // TODOS los datos de dispositivos Shelly
-      // 'ConsumCups/+',         // Datos de consumo por CUPS
-      // '+/ES+/#'               // Cualquier prefijo + CUPS español (acs, endoll1, enchufe23, etc.)
-    ];
+    // Els topics s'han d'autoritzar explícitament per evitar subscriure's a tot el broker.
+    this.staticTopics = (process.env.MQTT_STATIC_TOPICS || '')
+      .split(',')
+      .map(topic => topic.trim())
+      .filter(Boolean);
+
+    if (this.staticTopics.length === 0 || this.staticTopics.includes('#')) {
+      throw new Error(
+        'MQTT_STATIC_TOPICS és obligatòria i no pot contenir la subscripció global #'
+      );
+    }
 
     this.dynamicTopics = [];
     this.subscribedTopics = new Set();
@@ -71,15 +72,16 @@ class MqttService {
   async connect() {
     return new Promise((resolve, reject) => {
       try {
+        const clientId = `pescaenergia-backend-${Date.now()}`;
         const options = {
           host: process.env.MQTT_BROKER_URL,
           port: parseInt(process.env.MQTT_BROKER_PORT) || 1883,
           username: process.env.MQTT_BROKER_USER,
           password: process.env.MQTT_BROKER_PASSWORD,
-          clientId: `pescaenergia-backend-${Date.now()}`,
+          clientId,
           clean: true,
-          connectTimeout: 4000,
-          reconnectPeriod: 0, // Manejamos la reconexión manualmente
+          connectTimeout: 10000,
+          reconnectPeriod: 5000,
           qos: 1
         };
 
@@ -93,10 +95,14 @@ class MqttService {
 
         this.client.on('connect', () => {
           this.isConnected = true;
-          this.reconnectAttempts = 0;
-          this.reconnectInterval = 1000;
           
           logger.info('Conectado al broker MQTT exitosamente');
+          
+          // Sempre reassignar subscripcions en reconnectar
+          this.subscribeToAllTopics().catch(error => {
+            logger.error('Error reassignant subscripcions MQTT:', error);
+          });
+          
           resolve();
         });
 
@@ -109,8 +115,8 @@ class MqttService {
 
         this.client.on('close', () => {
           this.isConnected = false;
-          logger.warn('Conexión MQTT cerrada');
-          this.handleReconnection();
+          this.subscribedTopics.clear();
+          logger.warn('Conexión MQTT cerrada - el client es reconnectarà automàticament');
         });
 
         this.client.on('offline', () => {
@@ -127,31 +133,6 @@ class MqttService {
         reject(error);
       }
     });
-  }
-
-  /**
-   * Maneja la reconexión automática
-   */
-  async handleReconnection() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.error('Máximo número de intentos de reconexión alcanzado');
-      return;
-    }
-
-    this.reconnectAttempts++;
-    const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), 30000);
-    
-    logger.info(`Intentando reconexión ${this.reconnectAttempts}/${this.maxReconnectAttempts} en ${delay}ms`);
-    
-    setTimeout(async () => {
-      try {
-        await this.connect();
-        await this.subscribeToAllTopics();
-      } catch (error) {
-        logger.error('Error en reconexión:', error);
-        this.handleReconnection();
-      }
-    }, delay);
   }
 
   /**
@@ -380,8 +361,7 @@ class MqttService {
       ...this.stats,
       uptime: Math.floor((Date.now() - this.stats.startTime) / 1000),
       connected: this.isConnected,
-      subscribedTopics: Array.from(this.subscribedTopics),
-      reconnectAttempts: this.reconnectAttempts
+      subscribedTopics: Array.from(this.subscribedTopics)
     };
   }
 

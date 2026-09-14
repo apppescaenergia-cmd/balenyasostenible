@@ -20,7 +20,14 @@ const userParticipationRoutes = require('./routes/userParticipation');
 const dashboardRoutes = require('./routes/dashboard');
 const adminRoutes = require('./routes/admin');
 const plugsRoutes = require('./routes/plugs');
+const poolRoutes = require('./routes/pool');
+const automationRoutes = require('./routes/automation');
 const sseRoutes = require('./routes/sse');
+const consumtionsRoutes = require('./routes/consumtions');
+const balancRoutes = require('./routes/balanc');
+const statisticsRoutes = require('./routes/statistics');
+const energyMetricsRoutes = require('./routes/energyMetrics');
+const datadisRoutes = require('./routes/datadisRoutes');
 
 class ExpressApp {
   constructor() {
@@ -41,6 +48,9 @@ class ExpressApp {
       layoutsDir: path.join(__dirname, 'templates/layouts'),
       partialsDir: path.join(__dirname, 'templates/partials'),
       helpers: {
+        eq: function (a, b, options) {
+          return a === b ? options.fn(this) : options.inverse(this);
+        },
         formatDate: (date) => {
           if (!date) return '';
           return new Date(date).toLocaleDateString('ca-ES', {
@@ -72,6 +82,7 @@ class ExpressApp {
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
           fontSrc: ["'self'", "https://fonts.gstatic.com"],
           scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-hashes'", "https://accounts.google.com", "https://apis.google.com", "https://cdn.jsdelivr.net", "https://unpkg.com"],
+          scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"],
           connectSrc: ["'self'", "https://accounts.google.com", "https://www.googleapis.com"],
           frameSrc: ["https://accounts.google.com"],
           imgSrc: ["'self'", "data:", "https:", "https://lh3.googleusercontent.com"]
@@ -87,7 +98,8 @@ class ExpressApp {
         'http://localhost:3001',
         'https://accounts.google.com',
         'https://www.googleapis.com',
-        'https://gestio.pescaenergia.cat'
+        'https://gestio.pescaenergia.cat',
+        'https://gestio.pescaenergia.eu'
       ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -116,7 +128,7 @@ class ExpressApp {
     this.app.use((req, res, next) => {
       logger.info('HTTP Request', {
         method: req.method,
-        url: req.url,
+        path: req.path,
         ip: req.ip,
         userAgent: req.get('User-Agent')
       });
@@ -349,7 +361,14 @@ class ExpressApp {
     this.app.use('/api/dashboard', dashboardRoutes);
     this.app.use('/api/admin', adminRoutes);
     this.app.use('/api/plugs', plugsRoutes);
+    this.app.use('/api/pool', poolRoutes);
+    this.app.use('/api/automation', automationRoutes);
     this.app.use('/api/sse', sseRoutes);
+    this.app.use('/api/consumtions', consumtionsRoutes);
+    this.app.use('/api/balanc', balancRoutes);
+    this.app.use('/api/statistics', statisticsRoutes);
+    this.app.use('/api/energy-metrics', energyMetricsRoutes);
+    this.app.use('/api/datadis', datadisRoutes);
 
     // Rutas del frontend (área de usuario)
     this.app.use('/area-usuari', frontendRoutes);
@@ -387,7 +406,7 @@ class ExpressApp {
       if (req.originalUrl.startsWith('/api/')) {
         return res.status(404).json({
           error: 'Endpoint no encontrado',
-          path: req.originalUrl,
+          path: req.path,
           timestamp: new Date().toISOString()
         });
       }
@@ -398,7 +417,7 @@ class ExpressApp {
         layout: 'main',
         showNavbar: false,
         showFooter: true,
-        path: req.originalUrl
+        path: req.path
       });
     });
   }
@@ -409,7 +428,7 @@ class ExpressApp {
       logger.error('Error no manejado en Express:', {
         error: error.message,
         stack: error.stack,
-        url: req.url,
+        path: req.path,
         method: req.method,
         ip: req.ip
       });

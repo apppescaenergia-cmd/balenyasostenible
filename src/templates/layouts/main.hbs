@@ -70,6 +70,38 @@
                         <input type="text" id="profileCups" class="form-input" value="{{user.cups}}" disabled>
                         <small class="form-help">Contacta amb suport per canviar el CUPS</small>
                     </div>
+
+                    <div class="form-group">
+                        <label for="profileDni" class="form-label">DNI/NIE</label>
+                        <input type="text" id="profileDni" class="form-input" value="{{user.dni}}" placeholder="12345678A" maxlength="9">
+                        <small class="form-help">S'utilitza per a l'accés a Datadis</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileDatadisKey" class="form-label">Clau d'accés a Datadis</label>
+                        <input type="password" id="profileDatadisKey" class="form-input" placeholder="Introdueix la clau d'accés a Datadis">
+                        {{#if user.datadis_configured}}
+                            <small class="form-help">Ja tens una clau desada. Si l'edites, la canviaràs.</small>
+                        {{else}}
+                            <small class="form-help">S'emmagatzema de forma segura i s'utilitza per consultar el teu consum oficial</small>
+                        {{/if}}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileGenerator" class="form-label">Planta associada</label>
+                        <select id="profileGenerator" class="form-input">
+                            <option value="">-- Selecciona una planta --</option>
+                            {{#each user.generators}}
+                                <option value="{{this.id}}" {{#eq this.id ../user.participation.generator_code}}selected{{/eq}}>{{this.name}}</option>
+                            {{/each}}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profileParticipation" class="form-label">Coeficient de repartiment (%)</label>
+                        <input type="number" id="profileParticipation" class="form-input" min="0" max="100" step="0.01" value="{{user.participation.participation_percentage}}" placeholder="0-100">
+                        <small class="form-help">Percentatge d'energia de la planta que et correspon</small>
+                    </div>
                     
                     <div class="form-group">
                         <button type="submit" class="btn btn-primary">

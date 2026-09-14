@@ -12,6 +12,8 @@ class User {
     this.password_hash = userData.password_hash;
     this.role = userData.role;
     this.google_id = userData.google_id;
+    this.dni = userData.dni;
+    this.clau_datadis = userData.clau_datadis;
     this.email_validated = userData.email_validated;
     this.is_temp_password = userData.is_temp_password;
     this.email_verification_token = userData.email_verification_token;
@@ -32,6 +34,8 @@ class User {
         password,
         role = 'user',
         google_id = null,
+        dni = null,
+        clau_datadis = null,
         email_validated = false
       } = userData;
 
@@ -42,12 +46,12 @@ class User {
 
       const query = `
         INSERT INTO users (
-          cups, email, name, password_hash, role, google_id, email_validated, is_temp_password
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          cups, email, name, password_hash, role, google_id, dni, clau_datadis, email_validated, is_temp_password
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
 
-      const values = [cups, email, name, password_hash, role, google_id, email_validated, false];
+      const values = [cups, email, name, password_hash, role, google_id, dni, clau_datadis, email_validated, false];
       const result = await database.query(query, values);
 
       logger.info('Usuario creado', { userId: result.rows[0].id, email });
@@ -340,6 +344,31 @@ class User {
     }
   }
 
+  async updateEmail(newEmail) {
+    try {
+      const query = `
+        UPDATE users 
+        SET email = $1, 
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `;
+
+      const result = await database.query(query, [newEmail, this.id]);
+
+      if (result.rows.length > 0) {
+        this.email = result.rows[0].email;
+        this.updated_at = result.rows[0].updated_at;
+      }
+
+      logger.info('Email actualizado', { userId: this.id });
+      return true;
+    } catch (error) {
+      logger.error('Error actualizando email:', error);
+      throw error;
+    }
+  }
+
   // Crear usuario con password temporal
   static async createWithTempPassword(userData) {
     try {
@@ -349,20 +378,22 @@ class User {
         name,
         role = 'user',
         google_id = null,
+        dni = null,
+        clau_datadis = null,
         email_validated = false
       } = userData;
 
-      // Generar password temporal sin hashear
       const tempPassword = 'tmp-' + crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
 
       const query = `
         INSERT INTO users (
-          cups, email, name, password_hash, role, google_id, email_validated, is_temp_password
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          cups, email, name, password_hash, role, google_id, dni, clau_datadis, email_validated, is_temp_password
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
 
-      const values = [cups, email, name, tempPassword, role, google_id, email_validated, true];
+      const values = [cups, email, name, passwordHash, role, google_id, dni, clau_datadis, email_validated, true];
       const result = await database.query(query, values);
 
       logger.info('Usuario creado con password temporal', { userId: result.rows[0].id, email });
@@ -376,7 +407,7 @@ class User {
   // Actualizar perfil
   async updateProfile(updates) {
     try {
-      const allowedFields = ['name', 'cups'];
+      const allowedFields = ['name', 'cups', 'clau_datadis', 'dni'];
       const fields = [];
       const values = [];
       let paramCount = 1;
@@ -422,10 +453,12 @@ class User {
   toJSON() {
     return {
       id: this.id,
+      dni: this.dni,
       cups: this.cups,
       email: this.email,
       name: this.name,
       role: this.role,
+      datadis_configured: !!(this.clau_datadis),
       email_validated: this.email_validated,
       created_at: this.created_at,
       updated_at: this.updated_at

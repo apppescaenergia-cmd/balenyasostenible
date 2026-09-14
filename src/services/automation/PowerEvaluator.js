@@ -66,6 +66,7 @@ class PowerEvaluator {
       timestamp: Date.now()
     });
 
+    //console.log('Datos de potencia obtenidos y almacenados en cache', { cacheKey, userIds, freshData });
     return freshData;
   }
 
@@ -81,10 +82,11 @@ class PowerEvaluator {
    * @returns {boolean|null} - true si debe estar ON, false si debe estar OFF, null si no hay cambio
    */
   evaluate(config, currentPowerData, currentDeviceState = false) {
+    
     try {
       // Obtener umbrales de potencia configurados (en kW)
-      const powerOnThreshold = parseFloat(config.config.powerOnThreshold || config.config.power) || 0;
-      const powerOffThreshold = parseFloat(config.config.powerOffThreshold) || (powerOnThreshold * 0.4); // Default: 40% del umbral ON
+      const powerOnThreshold = (config.config.powerOnThreshold ?? config.config.power) ?? 0;
+      const powerOffThreshold = config.config.powerOffThreshold ?? (powerOnThreshold > 0 ? powerOnThreshold * 0.4 : -0.25); // Default: 40% del umbral ON
 
       // Diferencia de potencia actual (generación - consumo) en Watts
       const differenceKW = currentPowerData[config.userId]?.difference || 0;
@@ -93,9 +95,10 @@ class PowerEvaluator {
       // Convertir umbrales a Watts para comparación
       const onThresholdW = powerOnThreshold * 1000;
       const offThresholdW = powerOffThreshold * 1000;
-
+      //A LES VALIDECIONS DE UMBRAL EM TRET EL <= PER MANTENIR EL 0 COM A POSSIBILITAT DE APAGAR AMB QUALSEVOL EXCEDENT, PERO SI QUE EL UMBRAL DE ENCENDIDO HA DE SER MAJOR QUE EL D'APAGAT
+      //
       // Validación de umbrales
-      if (powerOnThreshold <= 0) {
+      if (powerOnThreshold <= -1) {
         logger.warn('Umbral de encendido inválido', { powerOnThreshold });
         return null;
       }
@@ -114,11 +117,17 @@ class PowerEvaluator {
       }
 
       // Lógica de histéresis
-      let shouldBeOn;
+
+      //es el bit de on i off entic 
+      let shouldBeOn = false;
+      // afegit per fer proves tenim un bit de stop 
+      let shouldBeOff = false;
 
       if (currentDeviceState) {
         // Si el dispositivo está ENCENDIDO, solo apagar si cae por debajo del umbral de apagado
         shouldBeOn = differenceW >= offThresholdW;
+        // afegit per fer proves, si el umbral de apagado se cumple, se activa un bit de stop que podria ser usat per altres automatitzacions o alertes
+        shouldBeOff = offThresholdW >= differenceW;
 
         logger.debug('Evaluación power (dispositivo ON)', {
           deviceId: config.deviceId,
@@ -142,6 +151,7 @@ class PowerEvaluator {
         });
       }
 
+      //console.log('Resultado de evaluación de power', { deviceId: config.deviceId, deviceName: config.deviceName, shouldBeOn, shouldBeOff });
       return shouldBeOn;
 
     } catch (error) {
@@ -179,7 +189,7 @@ class PowerEvaluator {
       for (const configData of configs) {
         try {
           // Obtener estado actual del dispositivo desde cache
-          const currentDeviceState = this.memoryCache.getDeviceState(configData.deviceId)?.isOn || false;
+          const currentDeviceState = this.memoryCache.getDeviceState(configData.deviceId)?.output || false;
 
           // Evaluar con histéresis usando el estado actual
           const evaluation = this.evaluate(configData, currentPowerData, currentDeviceState);
@@ -190,8 +200,8 @@ class PowerEvaluator {
             config: configData.config,
             evaluation: evaluation,
             currentState: currentDeviceState,
-            powerOnThreshold: parseFloat(configData.config.powerOnThreshold || configData.config.power) || 0,
-            powerOffThreshold: parseFloat(configData.config.powerOffThreshold) || 0
+            powerOnThreshold: (configData.config.powerOnThreshold ?? configData.config.power) ?? 0,
+            powerOffThreshold: configData.config.powerOffThreshold ?? 0
           });
 
         } catch (configError) {
@@ -218,7 +228,7 @@ class PowerEvaluator {
         offDevices: results.filter(r => r.evaluation === false).length,
         errors: results.filter(r => r.error).length
       });
-
+      
       return results;
 
     } catch (error) {

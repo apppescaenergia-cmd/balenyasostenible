@@ -146,6 +146,28 @@ class UserParticipation {
   }
 
   /**
+   * Actualizar la propia participación de un usuario (autoservei).
+   * Modifica la planta i el percentatge sense tocar assigned_by.
+   */
+  async updateOwn(id, { generatorCode, participationPercentage }) {
+    const query = `
+      UPDATE user_participation 
+      SET generator_code = $2, participation_percentage = $3, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    
+    try {
+      const pool = await this.getPool();
+      const result = await pool.query(query, [id, generatorCode, participationPercentage]);
+      return result.rows[0] || null;
+    } catch (error) {
+      logger.error('Error actualitzant la participació pròpia:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Eliminar una participación
    */
   async delete(id) {

@@ -182,6 +182,73 @@ router.post('/assign',
 
 /**
  * @swagger
+ * /api/user-participation/my:
+ *   put:
+ *     summary: Actualizar mi participación (autoservei del soci)
+ *     description: Permite al propio usuario modificar la planta asociada y/o su coeficiente de repartimiento
+ *     tags: [User Participation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - generatorCode
+ *               - participationPercentage
+ *             properties:
+ *               generatorCode:
+ *                 type: string
+ *                 description: Código del generador
+ *                 example: "giravolt"
+ *               participationPercentage:
+ *                 type: number
+ *                 minimum: 0
+ *                 maximum: 100
+ *                 description: Coeficiente de repartimiento del socio
+ *     responses:
+ *       200:
+ *         description: Participación actualizada exitosamente
+ *       400:
+ *         description: Error de validación
+ *       401:
+ *         description: No autorizado
+ */
+router.put('/my',
+  authenticateToken,
+  requireEmailValidation,
+  [
+    body('generatorCode')
+      .isString()
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage('generatorCode és obligatori'),
+    body('participationPercentage')
+      .isFloat({ min: 0, max: 100 })
+      .withMessage('participationPercentage ha de ser un número entre 0 i 100')
+  ],
+  handleValidationErrors,
+  asyncHandler(async (req, res) => {
+    const { generatorCode, participationPercentage } = req.body;
+    const userId = req.user.userId;
+
+    const participation = await userParticipationService.updateMyParticipation(userId, {
+      generatorCode,
+      participationPercentage
+    });
+
+    res.json({
+      message: 'Participació actualitzada correctament',
+      participation,
+      timestamp: new Date().toISOString()
+    });
+  })
+);
+
+/**
+ * @swagger
  * /api/user-participation/{id}:
  *   put:
  *     summary: Actualizar participación existente (Solo Admins)

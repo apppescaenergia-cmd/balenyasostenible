@@ -24,6 +24,8 @@ const DEVICE_METRICS_CONFIG = {
       // 'emeter_0_voltage',         // Voltaje canal 0
       // 'emeter_0_frequency',       // Frecuencia canal 0
       'emeter_0_energy',          // Contador a corto plazo (usar power o total)
+      'emeter_0_total',           // Energía total consumida canal 0 (timeseries + state)
+      'emeter_0_total_returned',  // Energía total devuelta canal 0 (timeseries + state)
       // 'emeter_1_power',           // Potencia instantánea canal 1
       // 'emeter_1_reactive_power',  // Potencia reactiva canal 1
       // 'emeter_1_voltage',         // Voltaje canal 1
@@ -34,8 +36,9 @@ const DEVICE_METRICS_CONFIG = {
     stateMetrics: [
       'online',                   // Estado de conexión
       'relay_0',                  // Estado del relé interno
-      'emeter_0_total',           // Energía total consumida canal 0
-      'emeter_0_total_returned',  // Energía total devuelta canal 0
+      'emeter_0_power',           // Potencia instantánea canal 0 (també timeseries)
+      'emeter_0_total',           // Energía total consumida canal 0 (timeseries + state)
+      'emeter_0_total_returned',  // Energía total devuelta canal 0 (timeseries + state)
       'emeter_1_total',           // Energía total consumida canal 1
       'emeter_1_total_returned'   // Energía total devuelta canal 1
     ],
@@ -45,6 +48,99 @@ const DEVICE_METRICS_CONFIG = {
       'emeter_0_returned_energy', // Contador a corto plazo (usar total_returned)
       'emeter_1_energy',          // Contador a corto plazo (usar power o total)
       'emeter_1_returned_energy'  // Contador a corto plazo (usar total_returned)
+    ]
+  },
+
+  // Bomba depuradora de piscina
+  // Topics: shellies/BombaDepuradora/{cups}/...
+  SHELLY_BOMBADEPURADORA: {
+    deviceType: 'POOL',
+    description: 'Shelly - Bomba depuradora de piscina',
+    
+    timeSeriesMetrics: [
+      'emeter_0_total',
+      'emeter_0_total_returned'
+    ],
+    
+    stateMetrics: [
+      'emeter_0_power',            // Potència actual (W) - vital per poolService
+      'relay_0'                    // Estat del relé (on/off)
+    ],
+    
+    ignoredMetrics: [
+      'emeter_0_reactive_power',
+      'emeter_0_voltage',
+      'emeter_1_power',
+      'emeter_1_reactive_power',
+      'emeter_1_voltage',
+      'emeter_1_total',
+      'emeter_1_total_returned',
+      'emeter_0_energy',
+      'emeter_0_returned_energy',
+      'emeter_1_energy',
+      'emeter_1_returned_energy'
+    ]
+  },
+
+  // Bomba neteja fons de piscina
+  // Topics: shellies/BombaNet/{cups}/...
+  SHELLY_BOMBANETEJA: {
+    deviceType: 'POOL',
+    description: 'Shelly - Bomba neteja fons de piscina',
+
+    timeSeriesMetrics: [
+      'emeter_0_total',
+      'emeter_0_total_returned'
+    ],
+
+    stateMetrics: [
+      'emeter_0_power',
+      'relay_0'
+    ],
+
+    ignoredMetrics: [
+      'emeter_0_reactive_power',
+      'emeter_0_voltage',
+      'emeter_1_power',
+      'emeter_1_reactive_power',
+      'emeter_1_voltage',
+      'emeter_1_total',
+      'emeter_1_total_returned',
+      'emeter_0_energy',
+      'emeter_0_returned_energy',
+      'emeter_1_energy',
+      'emeter_1_returned_energy'
+    ]
+  },
+
+  // Clorador salí de piscina
+  // Topics: shellies/CloradorSali/{cups}/...
+  SHELLY_CLORADORSALI: {
+    deviceType: 'POOL',
+    description: 'Shelly - Clorador salí de piscina',
+
+    timeSeriesMetrics: [
+      'emeter_0_total',
+      'emeter_0_total_returned'
+    ],
+
+    stateMetrics: [
+      'emeter_0_power',
+      'relay_0'
+    ],
+
+    ignoredMetrics: [
+      'emeter_0_reactive_power',
+      'emeter_0_voltage',
+      'emeter_1_power',
+      'emeter_1_reactive_power',
+      'emeter_1_voltage',
+      'emeter_1_total',
+      'emeter_1_total_returned',
+      'emeter_0_energy',
+      'emeter_0_returned_energy',
+      'emeter_1_energy',
+      'emeter_1_returned_energy'
     ]
   },
 
@@ -144,6 +240,21 @@ const DEVICE_METRICS_CONFIG = {
  * @returns {string} - 'SHELLY_EM', 'PLUG', 'GENERATOR', o 'UNKNOWN'
  */
 function getDeviceTypeFromTopic(topic) {
+  // Bomba depuradora: shellies/BombaDepuradora/...
+  if (topic.startsWith('shellies/BombaDepuradora/')) {
+    return 'SHELLY_BOMBADEPURADORA';
+  }
+
+  // Bomba neteja: shellies/BombaNet/...
+  if (topic.startsWith('shellies/BombaNet/')) {
+    return 'SHELLY_BOMBANETEJA';
+  }
+
+  // Clorador salí: shellies/CloradorSali/...
+  if (topic.startsWith('shellies/CloradorSali/')) {
+    return 'SHELLY_CLORADORSALI';
+  }
+
   // Shelly EM: shellies/shellyem/...
   if (topic.startsWith('shellies/shellyem/')) {
     return 'SHELLY_EM';
