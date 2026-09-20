@@ -1,14 +1,14 @@
 giravolt:
   active: true
-  name: Giravolt
-  mqtt_topic: Dades-Fotovoltaiques-consum-giravolt32
+  name: Generació Simulada
+  mqtt_topic: balenya/Generacio-simulada
 
 residencia:
   active: true
-  name: Residència
-  mqtt_topic: Generacio-Residencia
+  name: Generació Residència
+  mqtt_topic: balenya/generacio_Residencia
 
 sala-polivalent:
   active: true
-  name: Sala Polivalent
-  mqtt_topic: Generacio-SalaPolivalent
+  name: Generació Sala Polivalent
+  mqtt_topic: balenya/generacio_SalaPolivalent

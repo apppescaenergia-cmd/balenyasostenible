@@ -99,8 +99,10 @@ class ExpressApp {
         'https://accounts.google.com',
         'https://www.googleapis.com',
         'https://gestio.pescaenergia.cat',
-        'https://gestio.pescaenergia.eu'
-      ],
+        'https://gestio.pescaenergia.eu',
+        process.env.ADMIN_URL || '',
+        process.env.ADMIN_URL ? process.env.ADMIN_URL.replace(/\/+$/, '') : ''
+      ].filter(Boolean),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

@@ -4,7 +4,7 @@ const User = require('../models/User');
 const database = require('../utils/database');
 const emailService = require('./emailService');
 const googleAuthService = require('./googleAuthService');
-const userParticipationService = require('./userParticipationService');
+const UserParticipationService = require('./userParticipationService');
 const cryptoService = require('./cryptoService');
 const configLoader = require('../utils/configLoader');
 const logger = require('../utils/logger');
@@ -15,6 +15,7 @@ class AuthService {
     this.jwtSecret = getJwtSecret();
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
     this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+    this.userParticipationService = new UserParticipationService();
   }
 
   // Generar JWT token
@@ -406,7 +407,7 @@ class AuthService {
         throw new Error('Usuari no trobat');
       }
 
-      const participations = await userParticipationService.getUserParticipations(userId);
+      const participations = await this.userParticipationService.getUserParticipations(userId);
       const generators = configLoader.getActiveGenerators();
 
       return {
@@ -447,7 +448,7 @@ class AuthService {
 
       // Participació / coeficient de repartiment (autoservei del soci)
       if (generatorCode !== undefined && participationPercentage !== undefined) {
-        await userParticipationService.updateMyParticipation(userId, {
+        await this.userParticipationService.updateMyParticipation(userId, {
           generatorCode,
           participationPercentage
         });
