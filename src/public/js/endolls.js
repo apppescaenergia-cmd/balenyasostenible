@@ -232,12 +232,12 @@ class EndollsManager {
                 this.elements.modalPlugsList.innerHTML = `
                     <div style="text-align: center; padding: 20px; color: #666;">
                         <i data-lucide="search" style="width: 48px; height: 48px; margin-bottom: 15px;"></i>
-                        <p>No s'han trobat nous endolls associats al teu CUPS.</p>
+                        <p>No s'han trobat nous dispositius associats al teu CUPS.</p>
                     </div>
                 `;
             } else {
                 this.elements.modalPlugsList.innerHTML = `
-                    <h4 style="color: #1b4444; margin-bottom: 15px;">Nous endolls trobats:</h4>
+                    <h4 style="color: #1b4444; margin-bottom: 15px;">Nous dispositius trobats:</h4>
                     ${plugs.map(plug => `
                         <div class="stat-card" style="margin-bottom: 10px;">
                             <div class="stat-icon">
@@ -284,15 +284,16 @@ class EndollsManager {
             }
 
             if (data.success && data.discovered > 0) {
-                this.showModalMessage(`Descobriment completat! S'han trobat ${data.discovered} nous endolls.`, 'success');
+                this.showModalMessage(`Descobriment completat! S'han trobat ${data.discovered} nous dispositius.`, 'success');
                 this.renderModalResults(data.plugs, data.discovered);
                 
                 // Actualizar la lista principal después de un breve delay
                 setTimeout(() => {
                     this.loadUserPlugs();
+                    this.loadPoolDevice();
                 }, 1500);
             } else {
-                this.showModalMessage('Descobriment completat. No s\'han trobat nous endolls.', 'info');
+                this.showModalMessage('Descobriment completat. No s\'han trobat nous dispositius.', 'info');
                 this.renderModalResults([]);
             }
 

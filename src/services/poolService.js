@@ -64,9 +64,14 @@ class PoolService {
         SELECT id, shelly_device_id, device_name, device_type, user_id
         FROM devices
         WHERE user_id = $1
-        AND (device_type = 'POOL' OR shelly_device_id LIKE 'DepuradoraPiscina/%')
-        ORDER BY created_at DESC
-        LIMIT 1
+        AND (
+          device_type = 'POOL'
+          OR shelly_device_id LIKE 'DepuradoraPiscina/%'
+          OR device_type IN ('SHELLY_BOMBADEPURADORA', 'SHELLY_BOMBANETEJA', 'SHELLY_CLORADORSALI')
+          OR shelly_device_id LIKE 'BombaDepuradora/%'
+          OR shelly_device_id LIKE 'BombaNet/%'
+          OR shelly_device_id LIKE 'CloradorSali/%'
+        )
       `;
       const result = await database.query(query, [userId]);
       return result.rows[0] || null;

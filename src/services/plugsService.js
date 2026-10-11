@@ -212,7 +212,9 @@ class PlugsService {
         userName: user.name
       });
 
-      // 2. Buscar devices con patrón xxx/{cups}
+      // 2. Buscar dispositivos del CUPS:
+      //    - PLUG y dispositivos de piscina: `{nombre}/{cups}`
+      //    - Shelly EM (comptador): el propio `shelly_device_id` es el CUPS
       const searchPattern = `%/${user.cups}`;
       const searchQuery = `
         SELECT 
@@ -223,13 +225,12 @@ class PlugsService {
           user_id,
           created_at
         FROM devices 
-        WHERE shelly_device_id LIKE $1
+        WHERE (shelly_device_id LIKE $1 OR shelly_device_id = $3)
         AND (user_id IS NULL OR user_id != $2)
-        AND device_type = 'PLUG'
         ORDER BY shelly_device_id
       `;
 
-      const searchResult = await database.query(searchQuery, [searchPattern, userId]);
+      const searchResult = await database.query(searchQuery, [searchPattern, userId, user.cups]);
       const foundDevices = searchResult.rows;
 
       this.logger.info('Devices encontrados en búsqueda', {
@@ -247,7 +248,7 @@ class PlugsService {
         return {
           success: true,
           discovered: 0,
-          message: `No se encontraron enchufes para el CUPS ${user.cups}`,
+          message: `No s'han trobat dispositius per al CUPS ${user.cups}`,
           plugs: []
         };
       }
@@ -321,7 +322,7 @@ class PlugsService {
       const result = {
         success: true,
         discovered: assignedPlugs.length,
-        message: `Se descubrieron y asignaron ${assignedPlugs.length} enchufes para el CUPS ${user.cups}`,
+        message: `S'han descobert i assignat ${assignedPlugs.length} dispositius per al CUPS ${user.cups}`,
         user: {
           id: userId,
           name: user.name,
