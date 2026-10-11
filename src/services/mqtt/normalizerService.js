@@ -189,18 +189,15 @@ class NormalizerService {
    */
   parseShelly(match, payload, timestamp, fullTopic) {
     const [, topicPath] = match;
-    
-    // Parsear la estructura del topic de Shelly
+
+    // Estructures suportades:
+    //   {deviceName}/{CUPS}/emeter/0/{metric}          (p. ex. shellyem/ES003.../...)
+    //   balenya/{deviceName}/{CUPS}/emeter/0/{metric}  (namespace nou)
+    //   balenyaem/{CUPS}/emeter/0/{metric}             (nom antic del mateix comptador)
+    //   shellyem/{DEVICE_ID}/...                       (antics, sense CUPS)
+    //   announce (global)
     const topicParts = topicPath.split('/');
-    
-    // Diferentes estructuras posibles:
-    // shellyem/DEVICE_ID/emeter/INDEX/METRIC
-    // shellyem/DEVICE_ID/relay/INDEX
-    // shellyem/DEVICE_ID/online
-    // shellyem/DEVICE_ID/announce
-    // shellyem/DEVICE_ID/info
-    // announce (global)
-    
+
     let deviceId, deviceType, metricInfo;
 
     if (topicParts[0] === 'announce') {
@@ -217,29 +214,68 @@ class NormalizerService {
       } catch (error) {
         return null;
       }
-    } else if (topicParts.length >= 2) {
-      // Topics específicos de dispositivo
-      const shellyType = topicParts[0]; // shellyem, shellyplusplugs, etc.
-      const poolTypes = ['BombaDepuradora', 'BombaNet', 'CloradorSali'];
-      deviceId = poolTypes.includes(shellyType)
-        ? `${shellyType}/${topicParts[1].trim()}`
-        : topicParts[1].trim();
-      deviceType = `SHELLY_${shellyType.toUpperCase()}`;
-      
-      if (topicParts.length === 2) {
-        // shellies/shellyem/DEVICE_ID (sin subtopic)
-        metricInfo = {
-          name: 'device_info',
-          value: payload,
-          unit: 'string'
-        };
-      } else {
-        // Subtopics como emeter, relay, online, etc.
-        const subtopic = topicParts.slice(2).join('/');
-        metricInfo = this.parseShellySubtopic(subtopic, payload);
-      }
     } else {
-      return null;
+      // Localitzar el CUPS dins del topic (primer segment amb format de CUPS).
+      // Això permet ignorar el namespace opcional (`balenya/`) i el nom del
+      // dispositiu (`shellyem`, `balenyaem`, `BombaDepuradora`, ...).
+      const cupsIdx = topicParts.findIndex((part) => this.isValidCups(part));
+
+      if (cupsIdx >= 1) {
+        const cups = topicParts[cupsIdx].trim();
+        const deviceName = topicParts[cupsIdx - 1].trim();
+        const subtopicParts = topicParts.slice(cupsIdx + 1);
+
+        // Identitat del dispositiu segons el nom que apareix just abans del CUPS
+        const poolTypes = {
+          BombaDepuradora: 'SHELLY_BOMBADEPURADORA',
+          BombaNet: 'SHELLY_BOMBANETEJA',
+          CloradorSali: 'SHELLY_CLORADORSALI'
+        };
+
+        if (deviceName === 'shellyem' || deviceName === 'balenyaem') {
+          // `balenyaem` és el nom antic del mateix comptador Shelly EM
+          deviceId = cups;
+          deviceType = 'SHELLY_SHELLYEM';
+        } else if (poolTypes[deviceName]) {
+          deviceId = `${deviceName}/${cups}`;
+          deviceType = poolTypes[deviceName];
+        } else {
+          deviceId = `${deviceName}/${cups}`;
+          deviceType = `SHELLY_${deviceName.toUpperCase()}`;
+        }
+
+        if (subtopicParts.length === 0) {
+          // {deviceName}/{CUPS} (sense subtopic)
+          metricInfo = {
+            name: 'device_info',
+            value: payload,
+            unit: 'string'
+          };
+        } else {
+          // Subtopics com emeter/0/power, relay/0, online, etc.
+          metricInfo = this.parseShellySubtopic(subtopicParts.join('/'), payload);
+        }
+      } else if (topicParts.length >= 2) {
+        // Fallback llegat (sense CUPS): {tipus}/{id}[/subtopic]
+        const shellyType = topicParts[0];
+        const poolTypes = ['BombaDepuradora', 'BombaNet', 'CloradorSali'];
+        deviceId = poolTypes.includes(shellyType)
+          ? `${shellyType}/${topicParts[1].trim()}`
+          : topicParts[1].trim();
+        deviceType = `SHELLY_${shellyType.toUpperCase()}`;
+
+        if (topicParts.length === 2) {
+          metricInfo = {
+            name: 'device_info',
+            value: payload,
+            unit: 'string'
+          };
+        } else {
+          metricInfo = this.parseShellySubtopic(topicParts.slice(2).join('/'), payload);
+        }
+      } else {
+        return null;
+      }
     }
 
     if (!metricInfo) {

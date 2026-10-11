@@ -5,6 +5,9 @@ const BalancEnergeticService = require('./balancEnergeticService');
 const TOTAL_METRIC_MAP = {
   SHELLY_SHELLYEM: 'emeter_0_total_max',
   POOL: 'emeter_0_total_max',
+  SHELLY_BOMBADEPURADORA: 'emeter_0_total_max',
+  SHELLY_BOMBANETEJA: 'emeter_0_total_max',
+  SHELLY_CLORADORSALI: 'emeter_0_total_max',
   SHELLY_ANNOUNCE: 'emeter_0_total_max',
   PLUG: 'events_rpc_params_switch:0_aenergy_total_max',
 };
@@ -102,7 +105,10 @@ class ConsumptionService {
         u.cups
       FROM devices d
       JOIN users u ON d.user_id = u.id::text
-      WHERE d.device_type IN ('SHELLY_SHELLYEM', 'POOL', 'SHELLY_ANNOUNCE', 'PLUG')
+      WHERE d.device_type IN (
+        'SHELLY_SHELLYEM', 'POOL', 'SHELLY_ANNOUNCE', 'PLUG',
+        'SHELLY_BOMBADEPURADORA', 'SHELLY_BOMBANETEJA', 'SHELLY_CLORADORSALI'
+      )
       ORDER BY u.cups, d.device_name
     `);
     return result.rows;

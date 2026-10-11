@@ -23,7 +23,6 @@ const DEVICE_METRICS_CONFIG = {
       // 'emeter_0_reactive_power',  // Potencia reactiva canal 0
       // 'emeter_0_voltage',         // Voltaje canal 0
       // 'emeter_0_frequency',       // Frecuencia canal 0
-      'emeter_0_energy',          // Contador a corto plazo (usar power o total)
       'emeter_0_total',           // Energía total consumida canal 0 (timeseries + state)
       'emeter_0_total_returned',  // Energía total devuelta canal 0 (timeseries + state)
       // 'emeter_1_power',           // Potencia instantánea canal 1
@@ -45,6 +44,9 @@ const DEVICE_METRICS_CONFIG = {
     
     // Métricas que se ignoran (no se procesan)
     ignoredMetrics: [
+      'emeter_0_reactive_power',  // Potencia reactiva (no usada)
+      'emeter_0_pf',              // Factor de potencia (no usado)
+      'emeter_0_energy',          // Contador a corto plazo (usar power o total)
       'emeter_0_returned_energy', // Contador a corto plazo (usar total_returned)
       'emeter_1_energy',          // Contador a corto plazo (usar power o total)
       'emeter_1_returned_energy'  // Contador a corto plazo (usar total_returned)
@@ -240,23 +242,28 @@ const DEVICE_METRICS_CONFIG = {
  * @returns {string} - 'SHELLY_EM', 'PLUG', 'GENERATOR', o 'UNKNOWN'
  */
 function getDeviceTypeFromTopic(topic) {
-  // Bomba depuradora: shellies/BombaDepuradora/...
-  if (topic.startsWith('shellies/BombaDepuradora/')) {
+  // Soportar tant `shellies/{device}` com `shellies/{namespace}/{device}`
+  // i el nom antic `shellies/balenyaem/...`.
+  const segments = topic.split('/');
+  const hasSegment = (name) => segments.includes(name);
+
+  // Bomba depuradora: shellies/[balenya/]BombaDepuradora/...
+  if (hasSegment('BombaDepuradora')) {
     return 'SHELLY_BOMBADEPURADORA';
   }
 
-  // Bomba neteja: shellies/BombaNet/...
-  if (topic.startsWith('shellies/BombaNet/')) {
+  // Bomba neteja: shellies/[balenya/]BombaNet/...
+  if (hasSegment('BombaNet')) {
     return 'SHELLY_BOMBANETEJA';
   }
 
-  // Clorador salí: shellies/CloradorSali/...
-  if (topic.startsWith('shellies/CloradorSali/')) {
+  // Clorador salí: shellies/[balenya/]CloradorSali/...
+  if (hasSegment('CloradorSali')) {
     return 'SHELLY_CLORADORSALI';
   }
 
-  // Shelly EM: shellies/shellyem/...
-  if (topic.startsWith('shellies/shellyem/')) {
+  // Shelly EM: shellies/[balenya/]shellyem/... o shellies/balenyaem/...
+  if (hasSegment('shellyem') || hasSegment('balenyaem')) {
     return 'SHELLY_EM';
   }
   
@@ -284,12 +291,23 @@ function getDeviceTypeFromTopic(topic) {
 }
 
 /**
+ * Álias de tipos de dispositivo que el parser emite pero que no son claves
+ * directas de la configuración.
+ */
+const DEVICE_TYPE_ALIASES = {
+  ENERGY_GENERATOR: 'GENERATOR',
+  SHELLY_BOMBANET: 'SHELLY_BOMBANETEJA'
+};
+
+/**
  * Obtiene la configuración de métricas para un tipo de dispositivo
- * @param {string} deviceType - Tipo de dispositivo
+ * @param {string} deviceType - Tipo del dispositivo
  * @returns {Object|null} - Configuración de métricas o null si no existe
  */
 function getMetricsConfig(deviceType) {
-  return DEVICE_METRICS_CONFIG[deviceType] || null;
+  return DEVICE_METRICS_CONFIG[deviceType]
+    || DEVICE_METRICS_CONFIG[DEVICE_TYPE_ALIASES[deviceType]]
+    || null;
 }
 
 /**

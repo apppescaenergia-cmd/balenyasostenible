@@ -38,13 +38,15 @@ class MqttDataService {
     try {
       logger.info('Inicializando MqttDataService coordinador...');
 
+      // Registrar el handler ABANS de connectar-se i subscriure's: els missatges
+      // retained del broker s'entregen just després del SUBACK i, si el handler
+      // encara no està registrat, es perdrien definitivament.
+      this.mqttService.addMessageHandler(this.handleMqttMessage.bind(this));
+      logger.info('Handler de mensajes MQTT configurado con flujo dual');
+
       // Inicializar servicios base
       await this.mqttService.initialize();
       logger.info('MqttService inicializado');
-
-      // Configurar el handler de mensajes MQTT con flujo dual
-      this.mqttService.addMessageHandler(this.handleMqttMessage.bind(this));
-      logger.info('Handler de mensajes MQTT configurado con flujo dual');
 
       this.isInitialized = true;
       logger.info('MqttDataService coordinador inicializado correctamente');
@@ -136,7 +138,12 @@ class MqttDataService {
     } = classifiedData;
 
     // PROCESAR ESTADOS INMEDIATAMENTE
-    if (stateMetrics.length > 0 && !deviceId.startsWith('gen-')) {
+    // Els generadors no tenen dispositius físics ni estats persistits
+    if (
+      stateMetrics.length > 0 &&
+      deviceType !== 'ENERGY_GENERATOR' &&
+      !deviceId.startsWith('gen-')
+    ) {
       try {
         await this.processStatesImmediately(deviceId, stateMetrics);
         this.stats.statesProcessedImmediately += stateMetrics.length;

@@ -31,8 +31,8 @@ class CompactorService {
       startTime: Date.now()
     };
     
-    // Configuración de agregados
-    this.aggregationTypes = ['avg', 'min', 'max', 'sum', 'count'];
+    // Configuración de agregados (només avg+max: la resta no es llegeixen)
+    this.aggregationTypes = ['avg', 'max'];
     
     // Running max per comptadors acumulatius (deviceUuid|metricName -> value)
     // Els comptadors acumulatius mai han de baixar: qualsevol mostra per sota

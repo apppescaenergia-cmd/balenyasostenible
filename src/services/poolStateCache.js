@@ -30,7 +30,7 @@ class PoolStateCache {
     _handle(messageData) {
         try {
             const { topic, payload } = messageData;
-            const m = topic.match(/^shellies\/(BombaDepuradora|BombaNet|CloradorSali)\/([^/]+)\/(.+)$/);
+            const m = topic.match(/^shellies\/(?:balenya\/)?(BombaDepuradora|BombaNet|CloradorSali)\/([^/]+)\/(.+)$/);
             if (!m) return;
 
             const elementMap = {
